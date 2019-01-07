@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace : dao接口的全路径 -->
+<mapper namespace="com.zs.pms.dao.ArticleDao">
+
+<!-- 使用sql片段载入常用复用语句 -->
+	<!--Selector 选择器 -->
+	<sql id="selector">
+		select * from tarticle
+	</sql>
+	<sql id="where">
+		<!-- 添加where标签进行自动判断 -->
+		<where>
+			<!-- if进行条件判断 -->
+			<if test="title!=null and title!=''">
+				and title=#{title}
+			</if>
+			<if test="author!=null and author!=''">
+				and author=#{author}
+			</if>
+		</where>
+	</sql>
+	<!-- 排序按照id降序 -->
+	<!--order by -->
+	<sql id="order">
+		order by id desc
+	</sql>
+	<!-- 分 页 转义 > : &gt; : greater than < : &lt; : less than -->
+	<sql id="page">
+		<where>
+			<if test="start!=0">
+				and rn&gt;=#{start}
+			</if>
+			<if test="end!=0">
+				and rn&lt;=#{end}
+			</if>
+		</where>
+	</sql>
+	
+	<!-- 根据id查询文章 -->
+	<select id="queryArticleById" parameterType="int" resultType="Tarticle">
+	   select * from  tarticle where id =#{id} 
+	</select>
+
+    <!-- 登录查询 -->
+	<select id="queryArticleByCon" parameterType="ArticleQuery" resultType="Tarticle">
+		<!-- 使用include引入片段 -->
+		<include refid="selector" />
+		<include refid="where" />
+	</select>
+
+
+	<!--利用sql片段制作分页模版 -->
+	<select id="queryArticleByPage" parameterType="ArticleQuery" resultType="Tarticle">
+		select t1.* from (select rownum rn,t.* from
+		(
+		SELECT t3.*,t2.cname
+ FROM 
+(select * from tarticle)t3 left JOIN 
+(SELECT t.cname,t.ID FROM tchannel t) t2 ON t3.channel=t2.ID
+		<include refid="where" />
+		order by t3.id desc
+		)
+		t) t1
+		<include refid="page" />
+	</select>
+	
+	<!--计算总条数 -->
+	<select id="queryByCount" parameterType="ArticleQuery" resultType="int">
+		select count(1) from tarticle <!--可以使用索引 -->
+		<include refid="where" />
+	</select>
+	
+	<!-- 根据id进行删除 -->
+	<select id="deleteArticleById">
+	  delete from tarticle where id=#{id}
+	</select>
+	<!-- 批量删除 -->
+	<delete id="deletesArticle">
+		delete from tarticle where id in
+		<!-- 拼in的条件 collection：容器类型 item：循环后的临时变量名 open：从...开始 close：从...结束 separator：分隔符 -->
+		<foreach collection="array" item="id" open="(" close=")"
+			separator=",">
+			#{id}
+		</foreach>
+	</delete>
+	
+	<!-- 修改数据 -->
+	<update id="updateArticle" parameterType="Tarticle">
+		update tarticle
+		<!-- 有就改没有就不拼 -->
+		<set>
+			<!-- if进行条件判断 -->
+			<if test="title!=null and title!=''">
+				title=#{title},
+			</if>
+			<if test="content!=null and content!=''">
+				content=#{content},
+			</if>
+			<if test="author!=null and author!=''">
+				author=#{author},
+			</if>
+			<if test="crtime!=null">
+				crtime=#{crtime},
+			</if>
+			<if test="channel!=null">
+				channel=#{channel},
+			</if>
+			<if test="isremod!=null and isremod!=0">
+				isremod=#{isremod},
+			</if>
+			<if test="ishot!=null and ishot!=0">
+				ishot=#{ishot}
+			</if>
+		</set>
+		where id=#{id}
+	</update>
+
+
+	<!-- 新增数据 -->
+	<insert id="insertArticle" parameterType="Tarticle">
+		<!-- 使用序列自增 -->
+		<selectKey keyProperty="id" order="BEFORE" resultType="int">
+			select seq_article.nextval from dual
+		</selectKey>
+		insert into tarticle values
+		(#{id},#{title},#{content},#{author},#{crtime},#{channel},#{isremod},#{ishot})
+	</insert>
+
+</mapper>

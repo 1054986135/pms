@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace : dao接口的全路径 -->
+<mapper namespace="com.zs.pms.dao.UserDao">
+<resultMap type="TUser" id="usermap">
+	<!-- 一对多 
+		     property：属性
+		     column：关联字段
+		     select：查询sql
+		     ofType：集合里的对象类型
+		-->
+			<id column="id" property="id" />
+		<association property="dept" column="dept" select="getDept1" />
+	<collection property="plist" column="id" select="getPermisssion" ofType="TPermisssion"/>
+</resultMap>
+	<select id="getDept1" parameterType="int" resultType="Tdept">
+		select * from tdep where id=#{dept}
+	</select>
+
+	
+	
+
+	
+<!-- 获取指定用户的权限，根据id -->
+<select id="getPermisssion" parameterType="int" resultType="TPermisssion">
+SELECT * FROM  TPermission WHERE  
+ID IN (SELECT pid FROM TRolePermission WHERE rid IN 
+(SELECT rid  FROM TUserRole  WHERE 
+usID=#{id}))
+</select>
+<!--Selector 选择器-->
+<sql id="selector">
+	select * from tuser
+</sql>
+<sql id="where">
+	<where> <!-- 自动判断 -->
+	<!--如果参数有值则拼条件-->
+	<if test="loginname!=null and loginname!=''">
+		and  loginname=#{loginname}
+	</if>
+	<if test="password!=null and password!=''">
+		and password=#{password}
+	</if>
+	<if test="sex!=null and sex!=''">
+		and	sex=#{sex}
+	</if>
+	<if test="isenabled!=null and isenabled!=0">
+		and	 isenabled=#{isenabled}
+	</if>
+	</where>
+</sql>
+<!--order by-->
+<sql id="order">
+	order by id desc
+</sql>
+<!--
+	分 页 转义
+	> : &gt;   : greater than 
+	< : &lt;    : less than 
+ -->
+<sql id="page">
+	<where>
+	<if test="start!=0">
+		and rn&gt;=#{start}
+	</if>
+	<if test="end!=0">
+		and rn&lt;=#{end}
+	</if>
+</where>
+</sql>
+
+<!-- 按条件查询 -->
+<select id="queryByCon" parameterType="UserQuery" resultType="Tuser">
+<include refid="selector"></include>
+<include refid="where"></include>
+</select>
+
+<!--利用sql片段制作分页模版-->
+	<select id="queryByPage"  parameterType="UserQuery"  resultMap="usermap">
+		select t1.*  from (select rownum rn,t.* from 
+			(
+			<include refid="selector" />
+			 <include refid="where" />
+			 <include refid="order" />
+			)
+		t) t1 
+		<include refid="page" />
+	</select>
+
+<!--计算总条数-->
+	
+<select id="queryCount" parameterType="UserQuery" resultType="int">
+	select count(1) from tuser <!--可以使用索引-->
+	<include refid="where" />
+	
+</select>
+
+<!-- 根据主键查询并关联权限列表 -->
+<select id="queryById" parameterType="int" resultMap="usermap">
+select * from tuser where id=#{id}
+</select>
+
+<!-- 删除一条 -->
+<delete id="delete" parameterType="int">
+delete from tuser where id=#{id}
+</delete>
+
+<!-- 批量删除 -->
+<select id="deletes">
+delete from tuser where id in
+<!-- 
+    拼in的条件
+    collection:参数容器是数组
+    item：循环后的临时变量名
+    separator：分隔符
+    open：开始符号
+    close：结束字符
+ -->
+<foreach collection="array" item="ia" separator="," open="(" close=")" >
+#{ia}
+</foreach>
+</select>
+<!--修改-->
+	<update id="update" parameterType="TUser">
+		update tuser 
+			<!--有就改没有就不改 不拼-->
+		<set>
+			<if test="loginname!=null and loginname!=''">
+				 loginname=#{loginname},
+		</if>
+		<if test="password!=null and password!=''">
+				 password=#{password},
+		</if>
+		<if test="sex!=null and sex!=''">
+				 sex=#{sex},
+		</if>
+		<if test="birthday!=null">
+				 birthday=#{birthday},
+		</if>
+		<if test="email!=null and email!=''">
+				 email=#{email},
+		</if>
+		<if test="dept!=null">
+				 dept=#{dept.id},
+		</if>
+		<if test="realname!=null and realname!=''">
+				 realname=#{realname},
+		</if>
+		<!--数字类型-->
+		<if test="isenabled!=null and isenabled!=0">
+				 isenabled=#{isenabled},
+		</if>
+		<if test="pic!=null and pic!=''">
+				 pic=#{pic},
+		</if>
+		<if test="updator!=null and updator!=0">
+				 updator=#{updator},
+		</if>
+
+		<!--修改日期等于当前日期-->
+		updatime=sysdate,
+		</set>
+		where id=#{id}
+	</update>
+	
+	<insert id="insert" parameterType="TUser">
+	<!-- 
+	    主键生成用序列
+	    keyProperty:属性名
+	    order="BEFORE"：新增前生成
+	    resultType：返回类型
+	 -->
+	<selectKey keyProperty="id" order="BEFORE" resultType="int">
+	 SELECT seq_tuser.NEXTVAL FROM dual
+	</selectKey>
+	insert into tuser
+	values(#{id},#{loginname},#{password},#{sex},#{birthday},#{email},#{dept.id},#{realname},#{creator},sysdate,null,null,#{pic},#{isenabled})
+	</insert>
+
+
+
+</mapper>
